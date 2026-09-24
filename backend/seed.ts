@@ -1,63 +1,51 @@
-// backend/seed.ts
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  // Cria usuário de teste (se ainda não existir)
   const cpf = '123.456.789-00';
-  const existing = await prisma.aluno.findUnique({ where: { cpf } });
-  if (!existing) {
-    const passwordHash = await bcrypt.hash('123456', 10);
-    await prisma.aluno.create({
-      data: {
-        cpf,
-        passwordHash,
-        name: 'Usuário Teste',
-      },
-    });
-    console.log('✅ Usuário de teste criado');
-  } else {
-    console.log('⚠️ Usuário já existe, nada a fazer');
-  }
+  const passwordHash = await bcrypt.hash('123456', 10);
 
-  // Cria algumas músicas de exemplo
+  const aluno = await prisma.aluno.upsert({
+    where: { cpf },
+    update: { name: 'Usuário Teste', passwordHash },
+    create: { cpf, name: 'Usuário Teste', passwordHash },
+  });
+
   const musicas = [
     { title: 'Alucinação', artist: 'Belchior', explicit: false },
-    { title: 'Sobrevivendo ao Inferno', artist: "Racionais Mc's", explicit: true },
+    { title: 'Sobrevivendo ao Inferno', artist: "Racionais MC's", explicit: true },
+    { title: 'Ruas Vazias', artist: 'Shawlin', explicit: false },
     { title: 'Grana Azul', artist: 'Rodrigo Zin', explicit: false },
+    { title: 'God Is', artist: 'Kanye West', explicit: false },
   ];
 
-  for (const m of musicas) {
-    const exist = await prisma.musica.findFirst({
-      where: { title: m.title, artist: m.artist },
-    });
-    if (!exist) {
-      await prisma.musica.create({ data: m });
-    }
-  }
+  const catalogo = await Promise.all(
+    musicas.map((musica) => prisma.musica.upsert({
+      where: { title_artist: { title: musica.title, artist: musica.artist } },
+      update: { explicit: musica.explicit },
+      create: musica,
+    })),
+  );
 
-  // Cria alguns pedidos vinculados ao usuário de teste
-  const aluno = await prisma.aluno.findUnique({ where: { cpf } });
-  if (aluno) {
-    const todasMusicas = await prisma.musica.findMany();
-    for (let i = 0; i < todasMusicas.length; i++) {
-      await prisma.pedido.create({
-        data: {
-          alunoId: aluno.id,
-          musicaId: todasMusicas[i].id,
-          status: 'PENDING',
-        },
-      });
-    }
-    console.log('✅ Pedidos de teste criados');
-  }
+  await prisma.pedido.deleteMany({ where: { alunoId: aluno.id } });
+  await prisma.pedido.createMany({
+    data: catalogo.map((musica) => ({
+      alunoId: aluno.id,
+      musicaId: musica.id,
+      status: 'PENDING',
+    })),
+  });
+
+  console.log('Seed concluído.');
+  console.log('CPF: 123.456.789-00');
+  console.log('Senha: 123456');
 }
 
 main()
-  .catch(e => {
-    console.error(e);
+  .catch((error) => {
+    console.error(error);
     process.exit(1);
   })
   .finally(async () => {

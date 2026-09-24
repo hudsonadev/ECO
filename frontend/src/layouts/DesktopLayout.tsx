@@ -1,8 +1,8 @@
-import React from 'react';
+import type { ReactNode } from 'react';
 import { Sidebar } from '../components/Sidebar';
 
 interface DesktopLayoutProps {
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
 export function DesktopLayout({ children }: DesktopLayoutProps) {

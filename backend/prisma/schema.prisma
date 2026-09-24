@@ -1,0 +1,51 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PedidoStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PLAYED
+}
+
+model Aluno {
+  id           Int      @id @default(autoincrement())
+  cpf          String   @unique
+  passwordHash String
+  name         String
+  pedidos      Pedido[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Musica {
+  id        Int      @id @default(autoincrement())
+  title     String
+  artist    String
+  explicit  Boolean  @default(false)
+  pedidos   Pedido[]
+  createdAt DateTime @default(now())
+
+  @@unique([title, artist])
+}
+
+model Pedido {
+  id        Int          @id @default(autoincrement())
+  alunoId   Int
+  musicaId  Int
+  status    PedidoStatus @default(PENDING)
+  aluno     Aluno        @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+  musica    Musica       @relation(fields: [musicaId], references: [id], onDelete: Cascade)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@index([alunoId])
+  @@index([musicaId])
+  @@index([status])
+}

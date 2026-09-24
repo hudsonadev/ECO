@@ -1,17 +1,22 @@
 
-import React, { useState } from 'react';
+import { useState } from 'react';
+import type { ChangeEvent, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Lock, Eye, EyeOff } from 'lucide-react';
 import api from '../api';
-import { setToken } from '../auth';
+import { setToken, setUser } from '../auth';
+import type { AuthUser } from '../auth';
 
 export function Login() {
+  const navigate = useNavigate();
   const [cpf, setCpf] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Máscara dinâmica para o CPF
-  const handleCpfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCpfChange = (e: ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, ''); // Apenas números
     if (value.length > 11) value = value.slice(0, 11);
 
@@ -26,11 +31,23 @@ export function Login() {
     setCpf(value);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!cpf || !password) return;
-    console.log('Tentativa de login:', { cpf, password });
-    // TODO: Integração com o backend
+
+    setError('');
+    setIsSubmitting(true);
+
+    try {
+      const response = await api.post<{ token: string; aluno: AuthUser }>('/auth/login', { cpf, password });
+      setToken(response.data.token);
+      setUser(response.data.aluno);
+      navigate('/app');
+    } catch {
+      setError('Não foi possível entrar. Verifique o CPF e a senha.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -110,23 +127,20 @@ export function Login() {
             </div>
           </div>
 
-          {/* Link: Esqueci minha senha */}
-          <div className="mt-1 mb-[26px] text-left">
-            <a 
-              href="#" 
-              className="text-[12.5px] font-semibold text-brand-navyLight underline transition-colors duration-150 hover:text-brand-green inline-block"
-            >
-              Esqueci minha senha
-            </a>
-          </div>
+          {error && (
+            <p role="alert" className="-mt-3 mb-4 text-center text-sm font-semibold text-red-600">
+              {error}
+            </p>
+          )}
 
           {/* Botão: Entrar */}
           <div className="flex justify-center w-full">
             <button
               type="submit"
+              disabled={isSubmitting}
               className="bg-brand-green text-white border-none rounded-[10px] text-[16.5px] font-bold py-2.5 px-12 cursor-pointer shadow-[0_4px_14px_rgba(22,190,83,0.38)] transition-all duration-200 hover:bg-brand-greenHover hover:shadow-[0_6px_18px_rgba(22,190,83,0.45)] active:scale-[0.98] min-w-[172px] tracking-[0.2px] max-sm:w-full"
             >
-              Entrar
+              {isSubmitting ? 'Entrando...' : 'Entrar'}
             </button>
           </div>
 

@@ -1,8 +1,20 @@
-import React from 'react';
+import { useEffect, useState } from 'react';
 import { DesktopLayout } from '../layouts/DesktopLayout';
 import { User } from 'lucide-react';
+import api from '../api';
+import { getUser } from '../auth';
+import type { AuthUser } from '../auth';
 
 export function PerfilAluno() {
+  const [aluno, setAluno] = useState<AuthUser | null>(getUser());
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    api.get<AuthUser>('/me')
+      .then((response) => setAluno(response.data))
+      .catch(() => setError('Não foi possível carregar o perfil.'));
+  }, []);
+
   return (
     <DesktopLayout>
       <div className="w-full h-full flex items-center justify-center p-8">
@@ -19,12 +31,20 @@ export function PerfilAluno() {
             </div>
           </div>
 
-          <h2 className="text-[28px] font-bold text-brand-navy mb-2 uppercase text-center leading-tight">
-            NOME DO USUÁRIO
-          </h2>
-          <p className="text-[22px] font-semibold text-brand-navy/80 text-center">
-            CPF: 000.000.000-00
-          </p>
+          {error ? (
+            <p role="alert" className="text-center font-semibold text-red-600">{error}</p>
+          ) : aluno ? (
+            <>
+              <h2 className="text-[28px] font-bold text-brand-navy mb-2 uppercase text-center leading-tight">
+                {aluno.name}
+              </h2>
+              <p className="text-[22px] font-semibold text-brand-navy/80 text-center">
+                CPF: {aluno.cpf}
+              </p>
+            </>
+          ) : (
+            <p className="text-center font-semibold text-brand-navy/70">Carregando perfil...</p>
+          )}
           
         </div>
       </div>

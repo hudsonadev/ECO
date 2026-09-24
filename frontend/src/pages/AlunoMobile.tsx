@@ -1,15 +1,34 @@
-import React from 'react';
-import { AlignLeft, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Search } from 'lucide-react';
+import api from '../api';
 
-const filaMusicas = [
-  { id: 1, music: 'Alucinação', artist: 'Belchior' },
-  { id: 2, music: 'Sobrevivendo ao Inferno', artist: "Racionais Mc's" },
-  { id: 3, music: 'Ruas Vazias', artist: 'Shawlin' },
-  { id: 4, music: 'Grana Azul', artist: 'Rodrigo Zin' },
-  { id: 5, music: 'God Is', artist: 'Kanye West' },
-];
+interface Pedido {
+  id: number;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'PLAYED';
+  musica: { id: number; title: string; artist: string };
+}
 
 export function AlunoMobile() {
+  const [pedidos, setPedidos] = useState<Pedido[]>([]);
+  const [search, setSearch] = useState('');
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    api.get<Pedido[]>('/pedidos')
+      .then((response) => setPedidos(
+        response.data.filter((pedido) => ['PENDING', 'APPROVED'].includes(pedido.status)),
+      ))
+      .catch(() => setError('Não foi possível carregar a fila.'));
+  }, []);
+
+  const filaMusicas = useMemo(() => {
+    const term = search.trim().toLocaleLowerCase('pt-BR');
+    if (!term) return pedidos;
+    return pedidos.filter(({ musica }) =>
+      musica.title.toLocaleLowerCase('pt-BR').includes(term)
+      || musica.artist.toLocaleLowerCase('pt-BR').includes(term));
+  }, [pedidos, search]);
+
   return (
     <div 
       className="min-h-screen w-full flex justify-center bg-brand-bg bg-cover bg-center bg-fixed pt-10 px-4 sm:p-6"
@@ -20,9 +39,6 @@ export function AlunoMobile() {
         
         {/* Header */}
         <header className="flex items-center gap-4 px-6 pt-8 pb-6">
-          <button className="text-brand-navy p-1 -ml-1 hover:bg-gray-100 rounded-lg transition-colors">
-            <AlignLeft size={28} strokeWidth={2.5} />
-          </button>
           <h1 className="text-[20px] font-bold text-brand-navy uppercase tracking-tight mt-0.5">
             Menu Principal
           </h1>
@@ -39,11 +55,13 @@ export function AlunoMobile() {
               <input 
                 type="text" 
                 placeholder="Buscar" 
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
                 className="w-full h-[46px] border-none outline-none bg-transparent pl-5 pr-[42px] text-[15px] text-brand-navy font-semibold placeholder:text-brand-navy/50"
               />
-              <button className="absolute right-4 text-brand-navy/60 hover:text-brand-navy">
+              <span className="absolute right-4 text-brand-navy/60">
                 <Search size={20} strokeWidth={2.5} />
-              </button>
+              </span>
             </div>
           </div>
 
@@ -53,6 +71,10 @@ export function AlunoMobile() {
           </h2>
 
           <div className="flex flex-col gap-3 flex-1 overflow-y-auto">
+            {error && <p role="alert" className="text-center font-semibold text-red-600">{error}</p>}
+            {!error && filaMusicas.length === 0 && (
+              <p className="text-center font-semibold text-brand-navy/70">Nenhuma música na fila.</p>
+            )}
             {filaMusicas.map((item, index) => (
               <div 
                 key={item.id} 
@@ -69,35 +91,14 @@ export function AlunoMobile() {
                 {/* Info */}
                 <div className="flex flex-col ml-4">
                   <span className="text-[15px] font-bold text-brand-navy leading-tight">
-                    {item.music}
+                    {item.musica.title}
                   </span>
                   <span className="text-[14px] font-bold text-brand-navy/80 leading-tight">
-                    {item.artist}
+                    {item.musica.artist}
                   </span>
                 </div>
               </div>
             ))}
-          </div>
-
-          {/* Pagination */}
-          <div className="flex items-center justify-center gap-4 mt-8 pt-4">
-            <button className="w-9 h-9 rounded-full bg-[#e8eef3] flex items-center justify-center text-brand-navy hover:bg-[#d0dbe5] transition-colors border border-brand-navy/10">
-              <ChevronLeft size={20} />
-            </button>
-            
-            <div className="flex items-center gap-3 font-semibold text-brand-navy text-[15px]">
-              <div className="w-8 h-8 rounded-md border-[1.5px] border-brand-navy flex items-center justify-center bg-white">
-                1
-              </div>
-              <span>de</span>
-              <div className="w-8 h-8 rounded-md border-[1.5px] border-brand-navy flex items-center justify-center bg-white">
-                3
-              </div>
-            </div>
-
-            <button className="w-9 h-9 rounded-full bg-[#99dce6] flex items-center justify-center text-brand-navy hover:bg-[#88d0da] transition-colors border border-[#77c0ca]">
-              <ChevronRight size={20} />
-            </button>
           </div>
 
         </div>

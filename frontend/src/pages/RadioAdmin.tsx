@@ -1,18 +1,47 @@
-import React from 'react';
+import { useEffect, useState } from 'react';
 import { DesktopLayout } from '../layouts/DesktopLayout';
-import { AlertCircle, Check, X, ChevronLeft, ChevronRight, User } from 'lucide-react';
+import { AlertCircle, Check, X, User } from 'lucide-react';
+import api from '../api';
 
-// Mock data matching the design
-const filaPedidos = [
-  { id: 1, music: 'Plaqtudum', artist: 'Recayd Mob', explicit: true },
-  { id: 2, music: 'Grana Azul', artist: 'Rodrigo Zin', explicit: false },
-  { id: 3, music: 'Mistérios do Planeta', artist: 'Novos Baianos', explicit: true },
-  { id: 4, music: 'Dedicada a Ela', artist: 'Arthur Verocai', explicit: false },
-  { id: 5, music: 'O Trem Azul', artist: 'Lô Borges', explicit: true },
-  { id: 6, music: 'Palco', artist: 'Gilberto Gil', explicit: false },
-];
+interface Pedido {
+  id: number;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'PLAYED';
+  aluno: { id: number; name: string };
+  musica: { id: number; title: string; artist: string; explicit: boolean };
+}
 
 export function RadioAdmin() {
+  const [filaPedidos, setFilaPedidos] = useState<Pedido[]>([]);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+
+    api.get<Pedido[]>('/pedidos')
+      .then((response) => {
+        if (active) {
+          setFilaPedidos(response.data.filter((pedido) => pedido.status === 'PENDING'));
+          setError('');
+        }
+      })
+      .catch(() => {
+        if (active) setError('Não foi possível carregar os pedidos.');
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const updateStatus = async (id: number, status: 'APPROVED' | 'REJECTED') => {
+    try {
+      await api.patch(`/pedidos/${id}/status`, { status });
+      setFilaPedidos((pedidos) => pedidos.filter((pedido) => pedido.id !== id));
+    } catch {
+      setError('Não foi possível atualizar o pedido.');
+    }
+  };
+
   return (
     <DesktopLayout>
       <div className="w-full h-full p-12 flex flex-col items-center">
@@ -29,6 +58,10 @@ export function RadioAdmin() {
           </h2>
 
           <div className="flex-1 overflow-y-auto pr-2 space-y-4">
+            {error && <p role="alert" className="text-center font-semibold text-red-600">{error}</p>}
+            {!error && filaPedidos.length === 0 && (
+              <p className="text-center font-semibold text-brand-navy/70">Nenhum pedido pendente.</p>
+            )}
             {filaPedidos.map((pedido) => (
               <div key={pedido.id} className="flex items-center gap-4 w-full">
                 
@@ -47,16 +80,16 @@ export function RadioAdmin() {
                     
                     <div className="flex flex-col">
                       <span className="text-[14px] font-bold text-brand-navy leading-tight">
-                        {pedido.music}
+                        {pedido.musica.title}
                       </span>
                       <span className="text-[13px] font-bold text-brand-navy/80 leading-tight">
-                        {pedido.artist}
+                        {pedido.musica.artist}
                       </span>
                     </div>
                   </div>
 
                   {/* Explicit Badge */}
-                  {pedido.explicit && (
+                  {pedido.musica.explicit && (
                     <div className="w-[42px] h-[42px] rounded-full border-[2.5px] border-[#e68c17] flex items-center justify-center mr-2">
                       <AlertCircle size={26} className="text-[#e68c17]" strokeWidth={2.5} />
                     </div>
@@ -65,36 +98,15 @@ export function RadioAdmin() {
 
                 {/* Actions */}
                 <div className="flex items-center gap-3 flex-shrink-0">
-                  <button className="w-[52px] h-[52px] rounded-full bg-brand-green flex items-center justify-center text-white shadow-[0_4px_10px_rgba(22,190,83,0.3)] hover:scale-105 transition-transform">
+                  <button onClick={() => void updateStatus(pedido.id, 'APPROVED')} className="w-[52px] h-[52px] rounded-full bg-brand-green flex items-center justify-center text-white shadow-[0_4px_10px_rgba(22,190,83,0.3)] hover:scale-105 transition-transform">
                     <Check size={30} strokeWidth={3} />
                   </button>
-                  <button className="w-[52px] h-[52px] rounded-full bg-red-600 flex items-center justify-center text-white shadow-[0_4px_10px_rgba(220,38,38,0.3)] hover:scale-105 transition-transform border-[4px] border-white ring-2 ring-red-600">
+                  <button onClick={() => void updateStatus(pedido.id, 'REJECTED')} className="w-[52px] h-[52px] rounded-full bg-red-600 flex items-center justify-center text-white shadow-[0_4px_10px_rgba(220,38,38,0.3)] hover:scale-105 transition-transform border-[4px] border-white ring-2 ring-red-600">
                     <X size={26} strokeWidth={4} />
                   </button>
                 </div>
               </div>
             ))}
-          </div>
-
-          {/* Pagination */}
-          <div className="flex items-center justify-center gap-4 mt-8">
-            <button className="w-9 h-9 rounded-full bg-[#d0dbe5] flex items-center justify-center text-brand-navy hover:bg-[#c0cdd9] transition-colors border border-brand-navy/10">
-              <ChevronLeft size={20} />
-            </button>
-            
-            <div className="flex items-center gap-3 font-semibold text-brand-navy text-[15px]">
-              <div className="w-8 h-8 rounded-md border-[1.5px] border-brand-navy flex items-center justify-center bg-white">
-                1
-              </div>
-              <span>de</span>
-              <div className="w-8 h-8 rounded-md border-[1.5px] border-brand-navy flex items-center justify-center bg-white">
-                3
-              </div>
-            </div>
-
-            <button className="w-9 h-9 rounded-full bg-[#99dce6] flex items-center justify-center text-brand-navy hover:bg-[#88d0da] transition-colors border border-[#77c0ca]">
-              <ChevronRight size={20} />
-            </button>
           </div>
 
         </div>
